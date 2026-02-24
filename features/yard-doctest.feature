@@ -812,6 +812,40 @@ Feature: yard doctest
       When I run `bundle exec yard doctest`
       Then the output should contain "1 runs, 1 assertions, 0 failures, 0 errors, 0 skips"
 
+  Scenario: supports RSpec matchers on the right side of #=>
+    Given a file named "doctest_helper.rb" with:
+      """
+      require 'rspec/expectations'
+      require 'rspec/matchers'
+      require 'app/app'
+
+      include RSpec::Matchers
+      """
+    And a file named "app/app.rb" with:
+      """
+      class App
+        # @example approximate match
+        #   App.pi #=> be_within(0.01).of(3.14)
+        def self.pi
+          Math::PI
+        end
+
+        # @example kind of check
+        #   App.greeting #=> a_kind_of(String)
+        def self.greeting
+          'hello'
+        end
+
+        # @example collection inclusion
+        #   App.numbers #=> include(2, 3)
+        def self.numbers
+          [1, 2, 3, 4, 5]
+        end
+      end
+      """
+    When I run `bundle exec yard doctest`
+    Then the output should contain "3 runs, 3 assertions, 0 failures, 0 errors, 0 skips"
+
   Scenario: properly supports calculating coverage
     Given a file named "doctest_helper.rb" with:
       """

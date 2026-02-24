@@ -65,7 +65,7 @@ module YARD
       end
 
       def assert_example(example, expected, actual, bind)
-        expected = evaluate_with_assertion(expected, bind)
+        expected = evaluate_with_assertion(expected, nil)
         actual = evaluate_with_assertion(actual, bind)
         compare_values(expected, actual)
       rescue Minitest::Assertion => e
@@ -96,13 +96,18 @@ module YARD
       end
 
       def context(bind)
-        @context ||= if bind
-                       ctx = bind.class_eval('binding', __FILE__, __LINE__)
-                       transplant_instance_variables(ctx)
-                       ctx
-                     else
-                       binding
-                     end
+        @contexts ||= {}.compare_by_identity
+        @contexts[bind] ||= build_context(bind)
+      end
+
+      def build_context(bind)
+        if bind.respond_to?(:class_eval)
+          ctx = bind.class_eval('binding', __FILE__, __LINE__)
+          transplant_instance_variables(ctx)
+          ctx
+        else
+          binding
+        end
       end
 
       def transplant_instance_variables(ctx)
