@@ -59,36 +59,37 @@ module YARD
         excluded
       end
 
-      # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       def generate_tests(examples)
         examples.each do |example|
-          text = example.text
-
-          text = text.gsub('# =>', '#=>')
-          text = text.gsub('#=>', "\n#=>")
-          lines = text.split("\n").map(&:strip).reject(&:empty?)
-
-          asserts = [].tap do |arr|
-            until lines.empty?
-              actual = lines.take_while { |l| l !~ /^#=>/ }
-              expected = lines[actual.size] || ''
-              lines.slice! 0..actual.size
-
-              arr << {
-                expected: expected.sub('#=>', '').strip,
-                actual: actual.join("\n")
-              }
-            end
-          end
-
-          spec = YARD::Doctest::Example.new(example.name)
-          spec.definition = example.object.path
-          spec.filepath = "#{Dir.pwd}/#{example.object.files.first.join(':')}"
-          spec.asserts = asserts
-          spec.generate
+          build_spec(example).generate
         end
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+
+      def build_spec(example)
+        YARD::Doctest::Example.new(example.name).tap do |spec|
+          spec.definition = example.object.path
+          spec.filepath = "#{Dir.pwd}/#{example.object.files.first.join(':')}"
+          spec.asserts = parse_example_asserts(example)
+        end
+      end
+
+      def parse_example_asserts(example)
+        lines = lines_from_example_text(example.text)
+        [].tap do |arr|
+          until lines.empty?
+            actual = lines.take_while { |l| l !~ /^#=>/ }
+            expected = lines[actual.size] || ''
+            lines.slice! 0..actual.size
+            arr << { expected: expected.sub('#=>', '').strip, actual: actual.join("\n") }
+          end
+        end
+      end
+
+      def lines_from_example_text(text)
+        text = text.gsub('# =>', '#=>')
+        text = text.gsub('#=>', "\n#=>")
+        text.split("\n").map(&:strip).reject(&:empty?)
+      end
 
       def run_tests
         Minitest.autorun
