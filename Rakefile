@@ -5,7 +5,7 @@ require 'rake/clean'
 # Load all .rake files from tasks and its subdirectories.
 Dir.glob('rake_tasks/**/*.rake').each { |r| load r }
 
-default_tasks = %i[cucumber]
+default_tasks = %i[cucumber rubocop]
 
 task default: default_tasks
 
