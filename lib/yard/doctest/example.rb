@@ -2,8 +2,9 @@
 
 module YARD
   module Doctest
+    # Represents a YARD +@example+ tag and generates a Minitest spec from it.
+    # rubocop:disable Metrics/ClassLength
     class Example < ::Minitest::Spec
-
       # @return [String] namespace path of example (e.g. `Foo#bar`)
       attr_accessor :definition
 
@@ -16,6 +17,7 @@ module YARD
       #
       # Generates a spec and registers it to Minitest runner.
       #
+      # rubocop:disable Metrics/AbcSize, Metrics/BlockLength, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       def generate
         this = self
 
@@ -38,16 +40,20 @@ module YARD
             register_hooks(example_name, YARD::Doctest.hooks, this)
 
             it this.name do
+              # object_name may be an empty string (e.g. for bare `#method`
+              # definitions) or otherwise invalid, so rescue NameError from
+              # both const_defined? and const_get.
               begin
                 object_name = this.definition.split(/#|\./).first
-                scope = Object.const_get(object_name) if self.class.const_defined?(object_name)
-              rescue NameError
+                scope = Object.const_get(object_name) if Object.const_defined?(object_name)
+              rescue NameError # rubocop:disable Lint/SuppressedException
               end
 
               global_constants = Object.constants
-              scope_constants = scope.constants if scope && scope.respond_to?(:constants)
+              scope_constants = scope.constants if scope.respond_to?(:constants)
               this.asserts.each do |assert|
-                expected, actual = assert[:expected], assert[:actual]
+                expected = assert[:expected]
+                actual = assert[:actual]
                 if expected.empty?
                   evaluate_example(this, actual, scope)
                 else
@@ -55,21 +61,23 @@ module YARD
                 end
               end
               clear_extra_constants(Object, global_constants)
-              clear_extra_constants(scope, scope_constants) if scope && scope.respond_to?(:constants)
+              clear_extra_constants(scope, scope_constants) if scope.respond_to?(:constants)
             end
           end
         end
       end
+      # rubocop:enable Metrics/AbcSize, Metrics/BlockLength, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       protected
 
       def evaluate_example(example, actual, bind)
         evaluate(actual, bind)
-      rescue StandardError => error
-        add_filepath_to_backtrace(error, example.filepath)
-        raise error
+      rescue StandardError => e
+        add_filepath_to_backtrace(e, example.filepath)
+        raise e
       end
 
+      # rubocop:disable Metrics/MethodLength
       def assert_example(example, expected, actual, bind)
         expected = evaluate_with_assertion(expected, bind)
         actual = evaluate_with_assertion(actual, bind)
@@ -81,40 +89,42 @@ module YARD
         elsif expected.nil?
           assert_nil(actual)
         else
-          assert expected === actual, diff(expected, actual)
+          assert expected === actual, diff(expected, actual) # rubocop:disable Style/CaseEquality
         end
-      rescue Minitest::Assertion => error
-        add_filepath_to_backtrace(error, example.filepath)
-        raise error
+      rescue Minitest::Assertion => e
+        add_filepath_to_backtrace(e, example.filepath)
+        raise e
       end
+      # rubocop:enable Metrics/MethodLength
 
       def evaluate_with_assertion(code, bind)
         evaluate(code, bind)
-      rescue StandardError => error
-        error
+      rescue StandardError => e
+        e
       end
 
       def evaluate(code, bind)
         context(bind).eval(code)
       end
 
+      # rubocop:disable Metrics/MethodLength
       def context(bind)
-        @context ||= begin
-          if bind
-            context = bind.class_eval('binding', __FILE__, __LINE__)
-            # Oh my god, what is happening here?
-            # We need to transplant instance variables from the current binding.
-            instance_variables.each do |instance_variable_name|
-              local_variable_name = "__yard_doctest__#{instance_variable_name.to_s.delete('@')}"
-              context.local_variable_set(local_variable_name, instance_variable_get(instance_variable_name))
-              context.eval("#{instance_variable_name} = #{local_variable_name}")
-            end
-            context
-          else
-            binding
-          end
-        end
+        @context ||= if bind
+                       context = bind.class_eval('binding', __FILE__, __LINE__)
+                       # Oh my god, what is happening here?
+                       # We need to transplant instance variables from the current binding.
+                       instance_variables.each do |instance_variable_name|
+                         local_variable_name = "__yard_doctest__#{instance_variable_name.to_s.delete('@')}"
+                         context.local_variable_set(local_variable_name, instance_variable_get(instance_variable_name))
+                         # e.g.: @foo = __yard_doctest__foo
+                         context.eval("#{instance_variable_name} = #{local_variable_name}")
+                       end
+                       context
+                     else
+                       binding
+                     end
       end
+      # rubocop:enable Metrics/MethodLength
 
       def both_are_errors?(expected, actual)
         expected.is_a?(StandardError) && actual.is_a?(StandardError)
@@ -132,7 +142,7 @@ module YARD
         backtrace = exception.backtrace
         line = backtrace.find { |l| l =~ %r{lib/yard/doctest/example} }
         index = backtrace.index(line)
-        backtrace = backtrace.insert(index + 1, filepath)
+        backtrace.insert(index + 1, filepath)
         exception.set_backtrace backtrace
       end
 
@@ -158,7 +168,7 @@ module YARD
           end
         end
       end
-
-    end # Example
-  end # Doctest
-end # YARD
+    end
+    # rubocop:enable Metrics/ClassLength
+  end
+end

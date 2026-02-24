@@ -9,8 +9,9 @@ require_relative 'yard/doctest/example'
 require_relative 'yard/doctest/version'
 
 module YARD
+  # Provides configuration and hooks for YARD doctests.
   module Doctest
-    extend self
+    module_function
 
     #
     # Configures YARD doctest.
@@ -31,7 +32,7 @@ module YARD
     # @param [Proc] blk
     #
     def before(test = nil, &blk)
-      hooks[:before] << {test: test, block: blk}
+      hooks[:before] << { test: test, block: blk }
     end
 
     #
@@ -44,7 +45,7 @@ module YARD
     # @param [Proc] blk
     #
     def after(test = nil, &blk)
-      hooks[:after] << {test: test, block: blk}
+      hooks[:after] << { test: test, block: blk }
     end
 
     #
@@ -55,8 +56,8 @@ module YARD
     #
     # @param [Proc] blk
     #
-    def after_run(&blk)
-      Minitest.after_run &blk
+    def after_run(&)
+      Minitest.after_run(&)
     end
 
     #
@@ -82,12 +83,11 @@ module YARD
     #
     def hooks
       @hooks ||= {}.tap do |hash|
-        hash[:before], hash[:after] = [], []
+        hash[:before] = []
+        hash[:after] = []
       end
     end
-
-  end # Doctest
-end # YARD
-
+  end
+end
 
 YARD::CLI::CommandParser.commands[:doctest] = YARD::CLI::Doctest
