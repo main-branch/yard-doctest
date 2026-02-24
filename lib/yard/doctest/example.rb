@@ -3,7 +3,6 @@
 module YARD
   module Doctest
     # Represents a YARD +@example+ tag and generates a Minitest spec from it.
-    # rubocop:disable Metrics/ClassLength
     class Example < ::Minitest::Spec
       # @return [String] namespace path of example (e.g. `Foo#bar`)
       attr_accessor :definition
@@ -17,58 +16,46 @@ module YARD
       #
       # Generates a spec and registers it to Minitest runner.
       #
-      # rubocop:disable Metrics/AbcSize, Metrics/BlockLength, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       def generate
         this = self
 
         Class.new(this.class).class_eval do
-          %w[. support spec test].each do |dir|
-            require "#{dir}/doctest_helper" if File.exist?("#{dir}/doctest_helper.rb")
-          end
-
-          return if YARD::Doctest.skips.any? { |skip| this.definition.include?(skip) }
+          load_helpers
+          next if YARD::Doctest.skips.any? { |skip| this.definition.include?(skip) }
 
           describe this.definition do
-            # Append this.name to this.definition if YARD's @example tag is followed by
-            # descriptive text, to support hooks for multiple examples per code object.
-            example_name = if this.name.empty?
-                             this.definition
-                           else
-                             "#{this.definition}@#{this.name}"
-                           end
-
-            register_hooks(example_name, YARD::Doctest.hooks, this)
-
-            it this.name do
-              # object_name may be an empty string (e.g. for bare `#method`
-              # definitions) or otherwise invalid, so rescue NameError from
-              # both const_defined? and const_get.
-              begin
-                object_name = this.definition.split(/#|\./).first
-                scope = Object.const_get(object_name) if Object.const_defined?(object_name)
-              rescue NameError # rubocop:disable Lint/SuppressedException
-              end
-
-              global_constants = Object.constants
-              scope_constants = scope.constants if scope.respond_to?(:constants)
-              this.asserts.each do |assert|
-                expected = assert[:expected]
-                actual = assert[:actual]
-                if expected.empty?
-                  evaluate_example(this, actual, scope)
-                else
-                  assert_example(this, expected, actual, scope)
-                end
-              end
-              clear_extra_constants(Object, global_constants)
-              clear_extra_constants(scope, scope_constants) if scope.respond_to?(:constants)
-            end
+            register_hooks(example_name_for(this), YARD::Doctest.hooks, this)
+            it(this.name) { run_asserts(this) }
           end
         end
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/BlockLength, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       protected
+
+      def run_asserts(example)
+        scope = find_scope(example.definition)
+        global_constants, scope_constants = capture_constants(scope)
+        example.asserts.each { |assert| run_assert(example, assert, scope) }
+        clear_extra_constants(Object, global_constants)
+        clear_extra_constants(scope, scope_constants) if scope_constants
+      end
+
+      def run_assert(example, assert, scope)
+        if assert[:expected].empty?
+          evaluate_example(example, assert[:actual], scope)
+        else
+          assert_example(example, assert[:expected], assert[:actual], scope)
+        end
+      end
+
+      def find_scope(definition)
+        name = definition.split(/#|\./).first
+        Object.const_get(name) if name&.match?(/\A[A-Z]/) && Object.const_defined?(name)
+      end
+
+      def capture_constants(scope)
+        [Object.constants, scope.respond_to?(:constants) ? scope.constants : nil]
+      end
 
       def evaluate_example(example, actual, bind)
         evaluate(actual, bind)
@@ -77,11 +64,16 @@ module YARD
         raise e
       end
 
-      # rubocop:disable Metrics/MethodLength
       def assert_example(example, expected, actual, bind)
         expected = evaluate_with_assertion(expected, bind)
         actual = evaluate_with_assertion(actual, bind)
+        compare_values(expected, actual)
+      rescue Minitest::Assertion => e
+        add_filepath_to_backtrace(e, example.filepath)
+        raise e
+      end
 
+      def compare_values(expected, actual)
         if both_are_errors?(expected, actual)
           assert_equal("#<#{expected.class}: #{expected}>", "#<#{actual.class}: #{actual}>")
         elsif (error = only_one_is_error?(expected, actual))
@@ -91,11 +83,7 @@ module YARD
         else
           assert expected === actual, diff(expected, actual) # rubocop:disable Style/CaseEquality
         end
-      rescue Minitest::Assertion => e
-        add_filepath_to_backtrace(e, example.filepath)
-        raise e
       end
-      # rubocop:enable Metrics/MethodLength
 
       def evaluate_with_assertion(code, bind)
         evaluate(code, bind)
@@ -107,24 +95,25 @@ module YARD
         context(bind).eval(code)
       end
 
-      # rubocop:disable Metrics/MethodLength
       def context(bind)
         @context ||= if bind
-                       context = bind.class_eval('binding', __FILE__, __LINE__)
-                       # Oh my god, what is happening here?
-                       # We need to transplant instance variables from the current binding.
-                       instance_variables.each do |instance_variable_name|
-                         local_variable_name = "__yard_doctest__#{instance_variable_name.to_s.delete('@')}"
-                         context.local_variable_set(local_variable_name, instance_variable_get(instance_variable_name))
-                         # e.g.: @foo = __yard_doctest__foo
-                         context.eval("#{instance_variable_name} = #{local_variable_name}")
-                       end
-                       context
+                       ctx = bind.class_eval('binding', __FILE__, __LINE__)
+                       transplant_instance_variables(ctx)
+                       ctx
                      else
                        binding
                      end
       end
-      # rubocop:enable Metrics/MethodLength
+
+      def transplant_instance_variables(ctx)
+        # Transplant instance variables from the current binding into ctx so
+        # that examples can reference them as if running in the same scope.
+        instance_variables.each do |ivar|
+          local = "__yard_doctest__#{ivar.to_s.delete('@')}"
+          ctx.local_variable_set(local, instance_variable_get(ivar))
+          ctx.eval("#{ivar} = #{local}")
+        end
+      end
 
       def both_are_errors?(expected, actual)
         expected.is_a?(StandardError) && actual.is_a?(StandardError)
@@ -139,11 +128,7 @@ module YARD
       end
 
       def add_filepath_to_backtrace(exception, filepath)
-        backtrace = exception.backtrace
-        line = backtrace.find { |l| l =~ %r{lib/yard/doctest/example} }
-        index = backtrace.index(line)
-        backtrace.insert(index + 1, filepath)
-        exception.set_backtrace backtrace
+        exception.set_backtrace([filepath] + exception.backtrace)
       end
 
       def clear_extra_constants(scope, constants)
@@ -154,6 +139,18 @@ module YARD
 
       class << self
         protected
+
+        def load_helpers
+          %w[. support spec test].each do |dir|
+            require "#{dir}/doctest_helper" if File.exist?("#{dir}/doctest_helper.rb")
+          end
+        end
+
+        def example_name_for(example)
+          return example.definition if example.name.empty?
+
+          "#{example.definition}@#{example.name}"
+        end
 
         # @param [String] example_name The name of the example.
         # @param [Hash<Symbol, Array<Hash<(test: String, block: Proc)>>] all_hooks
@@ -169,6 +166,5 @@ module YARD
         end
       end
     end
-    # rubocop:enable Metrics/ClassLength
   end
 end
