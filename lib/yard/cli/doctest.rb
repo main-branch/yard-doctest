@@ -2,8 +2,8 @@
 
 module YARD
   module CLI
+    # Implements the +yard doctest+ command.
     class Doctest < Command
-
       def description
         'Doctests from @example tags'
       end
@@ -16,7 +16,7 @@ module YARD
       #   everything else is treated as the list of directories/files or glob
       #
       def run(*args)
-        files = args.select { |arg| arg !~ /^-/ }
+        files = args.grep_v(/^-/)
 
         files = parse_files(files)
         examples = parse_examples(files)
@@ -30,12 +30,10 @@ module YARD
       private
 
       def parse_files(globs)
-        globs = %w(app lib) if globs.empty?
+        globs = %w[app lib] if globs.empty?
 
         files = globs.map do |glob|
-          if glob !~ /.rb$/
-            glob = "#{glob}/**/*.rb"
-          end
+          glob = "#{glob}/**/*.rb" if glob !~ /.rb$/
 
           Dir[glob]
         end
@@ -54,12 +52,14 @@ module YARD
         args = YARD::Config.with_yardopts { YARD::Config.arguments.dup }
         args.each_with_index do |arg, i|
           next unless arg == '--exclude'
+
           excluded << args[i + 1]
         end
 
         excluded
       end
 
+      # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       def generate_tests(examples)
         examples.each do |example|
           text = example.text
@@ -76,7 +76,7 @@ module YARD
 
               arr << {
                 expected: expected.sub('#=>', '').strip,
-                actual: actual.join("\n"),
+                actual: actual.join("\n")
               }
             end
           end
@@ -88,6 +88,7 @@ module YARD
           spec.generate
         end
       end
+      # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
       def run_tests
         Minitest.autorun
@@ -96,7 +97,6 @@ module YARD
       def add_pwd_to_path
         $LOAD_PATH.unshift(Dir.pwd) unless $LOAD_PATH.include?(Dir.pwd)
       end
-
-    end # Doctest
-  end # CLI
-end # YARD
+    end
+  end
+end

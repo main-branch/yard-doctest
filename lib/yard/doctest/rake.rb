@@ -5,8 +5,8 @@ require 'rake/tasklib'
 
 module YARD
   module Doctest
+    # Rake task for running YARD doctests.
     class RakeTask < ::Rake::TaskLib
-
       # @return [String] the name of the task
       attr_accessor :name
 
@@ -17,6 +17,7 @@ module YARD
       attr_accessor :pattern
 
       def initialize(name = 'yard:doctest')
+        super()
         @name = name
         @doctest_opts = []
         @pattern = ''
@@ -35,7 +36,6 @@ module YARD
           abort unless system(command)
         end
       end
-
-    end # RakeTask
-  end # Doctest
-end # YARD
+    end
+  end
+end

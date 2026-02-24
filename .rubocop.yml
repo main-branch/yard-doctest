@@ -5,6 +5,14 @@ inherit_mode:
   merge:
     - Exclude
 
+Naming/FileName:
+  Exclude:
+    - 'lib/yard-doctest.rb'
+
+Style/DocumentDynamicEvalDefinition:
+  Exclude:
+    - 'lib/yard/doctest/example.rb'
+
 # Allow test data to have long lines
 Layout/LineLength:
   Exclude:
