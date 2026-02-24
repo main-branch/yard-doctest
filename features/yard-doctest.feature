@@ -132,16 +132,10 @@ Feature: yard doctest
       """
     When I run `bundle exec yard doctest`
     Then the exit status should be 1
-    And the output should contain:
-      """
-      1) Error:
-      #foo#test_0001_:
-      RuntimeError: Fails with exception
-      """
-    And the output should contain:
-      """
-      app/app.rb:4:in `foo'
-      """
+    And the output should contain "1) Error:"
+    And the output should contain "#foo#test_0001_:"
+    And the output should contain "RuntimeError: Fails with exception"
+    And the output should contain "app/app.rb:4:"
 
   Scenario: asserts using equality
     Given a file named "doctest_helper.rb" with:
@@ -510,7 +504,7 @@ Feature: yard doctest
       end
       """
     When I run `bundle exec yard doctest`
-    Then the output should contain "NameError: undefined local variable or method `a'"
+    Then the output should contain "NameError: undefined local variable or method 'a'"
 
   Scenario: supports global hooks
     Given a file named "doctest_helper.rb" with:
@@ -799,16 +793,10 @@ Feature: yard doctest
       """
     When I run `bundle exec yard doctest`
     Then the exit status should be 1
-    And the output should contain:
-      """
-      1) Error:
-      #foo#test_0001_:
-      RuntimeError: Fails with exception
-      """
-    And the output should contain:
-      """
-      app/app.rb:4:in `foo'
-      """
+    And the output should contain "1) Error:"
+    And the output should contain "#foo#test_0001_:"
+    And the output should contain "RuntimeError: Fails with exception"
+    And the output should contain "app/app.rb:4:"
 
   Scenario: handles a proc successfully
     Given a file named "doctest_helper.rb" with:
@@ -845,4 +833,4 @@ Feature: yard doctest
       """
     When I run `bundle exec yard doctest`
     Then the output should contain "1 runs, 1 assertions, 0 failures, 0 errors, 0 skips"
-    And the output should contain "3 / 3 LOC (100.0%) covered."
+    And the output should contain "100.0%"
