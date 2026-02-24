@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'main_branch_shared_rubocop_config', '~> 0.1'
   spec.add_development_dependency 'rake', '~> 13.0'
   spec.add_development_dependency 'relish', '~> 0.7'
-  spec.add_development_dependency 'rspec', '~> 3.13'
+  spec.add_development_dependency 'rspec-expectations', '~> 3.13'
   spec.add_development_dependency 'rubocop', '~> 1.84'
   spec.add_development_dependency 'ruby-lsp', '~> 0.26'
   spec.add_development_dependency 'simplecov', '~> 0.22'

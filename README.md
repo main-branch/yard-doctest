@@ -307,6 +307,52 @@ YARD::Doctest.configure do |doctest|
 end
 ```
 
+### Using RSpec matchers (optional)
+
+For richer assertions, you can use [RSpec
+matchers](https://rspec.info/documentation/3.12/rspec-expectations/) on the right
+side of `#=>`. This is **completely optional** and requires adding
+`rspec-expectations` to your project.
+
+First, add `rspec-expectations` to your Gemfile:
+
+```ruby
+gem 'rspec-expectations'
+```
+
+Then, include `RSpec::Matchers` in your test helper:
+
+```ruby
+# doctest_helper.rb
+require 'rspec/expectations'
+require 'rspec/matchers'
+
+include RSpec::Matchers
+```
+
+Now you can use RSpec matchers on the right side of `#=>`:
+
+```ruby
+class Calculator
+  # @example
+  #   Calculator.pi #=> be_within(0.01).of(3.14)
+  def self.pi
+    Math::PI
+  end
+
+  # @example
+  #   Calculator.describe(42) #=> a_kind_of(String) & match(/positive/)
+  def self.describe(n)
+    n > 0 ? "positive number" : "non-positive number"
+  end
+end
+```
+
+This works because RSpec matchers implement `===` via their `matches?` method, which
+integrates seamlessly with `yard-doctest`'s comparison logic. The expected side of
+`#=>` is evaluated in a neutral binding, so all RSpec matchers (including `include`)
+work even in class-scoped examples.
+
 ### Rake
 
 There is also a Rake task for you:
