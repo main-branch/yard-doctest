@@ -1,0 +1,7 @@
+require 'cucumber/rake/task'
+
+Cucumber::Rake::Task.new do |task|
+  task.cucumber_opts = %w[-f progress features]
+end
+
+CLEAN << 'tmp'
