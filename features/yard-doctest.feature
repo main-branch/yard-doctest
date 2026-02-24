@@ -504,7 +504,7 @@ Feature: yard doctest
       end
       """
     When I run `bundle exec yard doctest`
-    Then the output should contain "NameError: undefined local variable or method 'a'"
+    Then the output should match /NameError: undefined local variable or method [`']a'/
 
   Scenario: supports global hooks
     Given a file named "doctest_helper.rb" with:
